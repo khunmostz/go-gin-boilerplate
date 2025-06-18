@@ -1,0 +1,33 @@
+app:
+  env: example
+
+server:
+  port: "8080"
+
+database:
+  type: postgresql
+  postgres:
+    host: localhost
+    port: "5432"
+    username: postgres
+    password: password
+    dbname: example_db
+    sslmode: disable
+    timezone: Asia/Bangkok
+  mongodb:
+    uri: ""
+    host: localhost
+    port: "27017"
+    username: ""
+    password: ""
+    dbname: example_db
+
+jwt:
+  secret: "your-jwt-secret-key-here"
+  access_duration: "15m"
+  refresh_duration: "7d"
+
+redis:
+  host: localhost
+  port: "6379"
+  password: ""
