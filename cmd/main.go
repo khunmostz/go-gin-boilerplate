@@ -64,16 +64,28 @@ func gracefulShutdown(server *http.Server) {
 }
 
 func main() {
-	appConfig := config.Init()
+	// Load configuration
+	env := os.Getenv("APP_ENV")
+	if env == "" {
+		env = "dev" // default to development
+	}
+
+	appConfig, err := config.LoadConfigFromEnv(env)
+	if err != nil {
+		log.Fatalf("Failed to load config: %v", err)
+	}
+
+	// Print configuration
+	appConfig.PrintConfig()
 
 	_ = cache.InitRedis(&appConfig.Redis)
 
 	var baseRepo db.BaseRepository
-	switch appConfig.DbType {
-	case "postgresql":
+	switch appConfig.Database.Type {
+	case "postgresql", "postgres":
 		baseRepo = db.NewPgsqlRepository(db.InitPgsql(&appConfig.Database))
-	case "mongodb":
-		baseRepo = db.NewMongoRepository(db.InitMongo(&appConfig.Database), *appConfig.Database.DbName)
+	case "mongodb", "mongo":
+		baseRepo = db.NewMongoRepository(db.InitMongo(&appConfig.Database), appConfig.Database.MongoDB.DBName)
 	}
 
 	router := gin.Default()

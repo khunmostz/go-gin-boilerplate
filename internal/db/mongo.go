@@ -12,13 +12,8 @@ import (
 )
 
 func InitMongo(config *config.DatabaseConfig) *mongo.Client {
-	safeDeref := func(s *string, defaultVal string) string {
-		if s != nil {
-			return *s
-		}
-		return defaultVal
-	}
-	dsn := safeDeref(config.URI, "mongodb://localhost:27017")
+
+	dsn := config.MongoDB.URI
 	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI(dsn))
 	if err != nil {
 		log.Fatalf("Failed to connect to MongoDB: %v", err)

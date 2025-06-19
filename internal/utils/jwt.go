@@ -16,8 +16,8 @@ type JWT struct {
 func NewJWT(config *config.JWTConfig) *JWT {
 	return &JWT{
 		Secret:          config.Secret,
-		AccessDuration:  config.AccessDuration,
-		RefreshDuration: config.RefreshDuration,
+		AccessDuration:  config.AccessDuration.String(),
+		RefreshDuration: config.RefreshDuration.String(),
 	}
 }
 

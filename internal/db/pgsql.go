@@ -15,20 +15,14 @@ import (
 )
 
 func InitPgsql(config *config.DatabaseConfig) *gorm.DB {
-	safeDeref := func(s *string, defaultVal string) string {
-		if s != nil {
-			return *s
-		}
-		return defaultVal
-	}
 	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s timezone=%s",
-		safeDeref(config.Host, "localhost"),
-		safeDeref(config.Port, "5432"),
-		safeDeref(config.Username, ""),
-		safeDeref(config.Password, ""),
-		safeDeref(config.DbName, ""),
-		safeDeref(config.SSLMode, "disable"),
-		safeDeref(config.TimeZone, "UTC"),
+		config.Postgres.Host,
+		config.Postgres.Port,
+		config.Postgres.Username,
+		config.Postgres.Password,
+		config.Postgres.DBName,
+		config.Postgres.SSLMode,
+		config.Postgres.Timezone,
 	)
 
 	gormConfig := &gorm.Config{

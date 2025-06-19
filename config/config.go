@@ -2,163 +2,204 @@ package config
 
 import (
 	"fmt"
-	"strings"
+	"log"
+	"time"
 
 	"github.com/spf13/viper"
 )
 
+// Config represents the application configuration
 type Config struct {
-	Server   ServerConfig
-	DbType   string
-	Database DatabaseConfig
-	JWT      JWTConfig
-	Redis    RedisConfig
+	App      AppConfig      `mapstructure:"app"`
+	Server   ServerConfig   `mapstructure:"server"`
+	Database DatabaseConfig `mapstructure:"database"`
+	JWT      JWTConfig      `mapstructure:"jwt"`
+	Redis    RedisConfig    `mapstructure:"redis"`
 }
 
+// AppConfig represents application-level configuration
+type AppConfig struct {
+	Env string `mapstructure:"env"`
+}
+
+// ServerConfig represents server configuration
 type ServerConfig struct {
-	Port string
+	Port string `mapstructure:"port"`
 }
 
+// DatabaseConfig represents database configuration
 type DatabaseConfig struct {
-	URI      *string
-	Host     *string
-	Port     *string
-	Username *string
-	Password *string
-	DbName   *string
-	SSLMode  *string
-	TimeZone *string
+	Type     string         `mapstructure:"type"`
+	Postgres PostgresConfig `mapstructure:"postgres"`
+	MongoDB  MongoDBConfig  `mapstructure:"mongodb"`
 }
 
+// PostgresConfig represents PostgreSQL configuration
+type PostgresConfig struct {
+	Host     string `mapstructure:"host"`
+	Port     string `mapstructure:"port"`
+	Username string `mapstructure:"username"`
+	Password string `mapstructure:"password"`
+	DBName   string `mapstructure:"dbname"`
+	SSLMode  string `mapstructure:"sslmode"`
+	Timezone string `mapstructure:"timezone"`
+}
+
+// MongoDBConfig represents MongoDB configuration
+type MongoDBConfig struct {
+	URI      string `mapstructure:"uri"`
+	Host     string `mapstructure:"host"`
+	Port     string `mapstructure:"port"`
+	Username string `mapstructure:"username"`
+	Password string `mapstructure:"password"`
+	DBName   string `mapstructure:"dbname"`
+}
+
+// JWTConfig represents JWT configuration
 type JWTConfig struct {
-	Secret          string
-	AccessDuration  string
-	RefreshDuration string
+	Secret          string        `mapstructure:"secret"`
+	AccessDuration  time.Duration `mapstructure:"access_duration"`
+	RefreshDuration time.Duration `mapstructure:"refresh_duration"`
 }
 
+// RedisConfig represents Redis configuration
 type RedisConfig struct {
-	Host     string
-	Port     string
-	Password string
+	Host     string `mapstructure:"host"`
+	Port     string `mapstructure:"port"`
+	Password string `mapstructure:"password"`
 }
 
-func LoadConfig(env string) error {
-	if env == "" {
-		env = "dev"
-	}
-
-	// Set the config file
-	viper.SetConfigName(fmt.Sprintf("config.%s", env))
+// LoadConfig loads configuration from file using viper
+func LoadConfig(configPath string) (*Config, error) {
+	viper.SetConfigFile(configPath)
 	viper.SetConfigType("yaml")
-	viper.AddConfigPath(".")
-	viper.AddConfigPath("./config")
-
-	// Allow viper to read environment variables
 	viper.AutomaticEnv()
-	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
-	// Try to read config file
+	// Set default values
+	viper.SetDefault("server.port", "8080")
+	viper.SetDefault("database.type", "postgresql")
+	viper.SetDefault("database.postgres.sslmode", "disable")
+	viper.SetDefault("database.postgres.timezone", "UTC")
+	viper.SetDefault("jwt.access_duration", "15m")
+	viper.SetDefault("jwt.refresh_duration", "10080m")
+	viper.SetDefault("redis.host", "localhost")
+	viper.SetDefault("redis.port", "6379")
+
+	// Read configuration file
 	if err := viper.ReadInConfig(); err != nil {
-		// If config file is not found, that's okay - we'll rely on env vars
-		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-			return fmt.Errorf("error reading config file: %v", err)
-		}
-		fmt.Printf("Config file not found, using environment variables\n")
-	} else {
-		fmt.Printf("Using config file: %s\n", viper.ConfigFileUsed())
+		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
 
-	fmt.Printf("Loaded environment: %s\n", env)
+	// Create config instance
+	var config Config
+
+	// Unmarshal into struct using mapstructure
+	if err := viper.Unmarshal(&config); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
+	}
+
+	// Validate required fields
+	if err := validateConfig(&config); err != nil {
+		return nil, fmt.Errorf("config validation failed: %w", err)
+	}
+
+	return &config, nil
+}
+
+// LoadConfigFromEnv loads configuration based on environment
+func LoadConfigFromEnv(env string) (*Config, error) {
+	var configPath string
+
+	switch env {
+	case "development", "dev":
+		configPath = "config/dev/config.dev.yaml"
+	case "production", "prod":
+		configPath = "config/prod/config.prod.yaml"
+	default:
+		configPath = "config/example/config.example.yaml"
+	}
+
+	return LoadConfig(configPath)
+}
+
+// validateConfig validates required configuration fields
+func validateConfig(config *Config) error {
+	if config.JWT.Secret == "" {
+		return fmt.Errorf("JWT secret is required")
+	}
+
+	if config.Database.Type == "" {
+		return fmt.Errorf("database type is required")
+	}
+
+	// Validate database configuration based on type
+	switch config.Database.Type {
+	case "postgresql", "postgres":
+		if config.Database.Postgres.Host == "" {
+			return fmt.Errorf("postgres host is required")
+		}
+		if config.Database.Postgres.DBName == "" {
+			return fmt.Errorf("postgres database name is required")
+		}
+	case "mongodb", "mongo":
+		if config.Database.MongoDB.URI == "" && config.Database.MongoDB.Host == "" {
+			return fmt.Errorf("mongodb URI or host is required")
+		}
+	}
+
 	return nil
 }
 
-// stringPtr returns a pointer to the string if it's not empty, otherwise returns nil
-func stringPtr(s string) *string {
-	if s == "" {
-		return nil
+// GetDatabaseDSN returns database connection string based on configuration
+func (c *Config) GetDatabaseDSN() string {
+	switch c.Database.Type {
+	case "postgresql", "postgres":
+		return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s TimeZone=%s",
+			c.Database.Postgres.Host,
+			c.Database.Postgres.Port,
+			c.Database.Postgres.Username,
+			c.Database.Postgres.Password,
+			c.Database.Postgres.DBName,
+			c.Database.Postgres.SSLMode,
+			c.Database.Postgres.Timezone,
+		)
+	case "mongodb", "mongo":
+		if c.Database.MongoDB.URI != "" {
+			return c.Database.MongoDB.URI
+		}
+		return fmt.Sprintf("mongodb://%s:%s@%s:%s/%s",
+			c.Database.MongoDB.Username,
+			c.Database.MongoDB.Password,
+			c.Database.MongoDB.Host,
+			c.Database.MongoDB.Port,
+			c.Database.MongoDB.DBName,
+		)
 	}
-	return &s
+	return ""
 }
 
-func Init() *Config {
-	var dbConfig DatabaseConfig
-	env := viper.GetString("app.env")
-	if env == "" {
-		env = viper.GetString("APP_ENV") // fallback to env var
-	}
-	if err := LoadConfig(env); err != nil {
-		fmt.Printf("Warning: %v\n", err)
-	}
-
-	dbType := viper.GetString("database.type")
-	if dbType == "" {
-		dbType = viper.GetString("DB_TYPE") // fallback to env var
-		if dbType == "" {
-			dbType = "postgresql"
-		}
-	}
-
-	serverConfig := ServerConfig{
-		Port: getConfigString("server.port", "SERVER_PORT"),
-	}
-
-	switch dbType {
-	case "postgresql":
-		dbConfig = DatabaseConfig{
-			Host:     stringPtr(getConfigString("database.postgres.host", "POSTGRES_HOST")),
-			Port:     stringPtr(getConfigString("database.postgres.port", "POSTGRES_PORT")),
-			Username: stringPtr(getConfigString("database.postgres.username", "POSTGRES_USER")),
-			Password: stringPtr(getConfigString("database.postgres.password", "POSTGRES_PASSWORD")),
-			DbName:   stringPtr(getConfigString("database.postgres.dbname", "POSTGRES_DB")),
-			SSLMode:  stringPtr(getConfigString("database.postgres.sslmode", "POSTGRES_SSL_MODE")),
-			TimeZone: stringPtr(getConfigString("database.postgres.timezone", "POSTGRES_TIMEZONE")),
-		}
-	case "mongodb":
-		dbConfig = DatabaseConfig{
-			URI:      stringPtr(getConfigString("database.mongodb.uri", "MONGODB_URI")),
-			Host:     stringPtr(getConfigString("database.mongodb.host", "MONGO_HOST")),
-			Port:     stringPtr(getConfigString("database.mongodb.port", "MONGO_PORT")),
-			Username: stringPtr(getConfigString("database.mongodb.username", "MONGO_USER")),
-			Password: stringPtr(getConfigString("database.mongodb.password", "MONGO_PASSWORD")),
-			DbName:   stringPtr(getConfigString("database.mongodb.dbname", "MONGO_DB")),
-		}
-	default:
-		dbConfig = DatabaseConfig{
-			URI:      stringPtr(getConfigString("database.mongodb.uri", "MONGODB_URI")),
-			Host:     stringPtr(getConfigString("database.mongodb.host", "MONGO_HOST")),
-			Port:     stringPtr(getConfigString("database.mongodb.port", "MONGO_PORT")),
-			Username: stringPtr(getConfigString("database.mongodb.username", "MONGO_USER")),
-			Password: stringPtr(getConfigString("database.mongodb.password", "MONGO_PASSWORD")),
-			DbName:   stringPtr(getConfigString("database.mongodb.dbname", "MONGO_DB")),
-		}
-	}
-
-	jwtConfig := JWTConfig{
-		Secret:          getConfigString("jwt.secret", "JWT_SECRET"),
-		AccessDuration:  getConfigString("jwt.access_duration", "JWT_ACCESS_DURATION"),
-		RefreshDuration: getConfigString("jwt.refresh_duration", "JWT_REFRESH_DURATION"),
-	}
-
-	redisConfig := RedisConfig{
-		Host:     getConfigString("redis.host", "REDIS_HOST"),
-		Port:     getConfigString("redis.port", "REDIS_PORT"),
-		Password: getConfigString("redis.password", "REDIS_PASSWORD"),
-	}
-
-	return &Config{
-		Server:   serverConfig,
-		DbType:   dbType,
-		Database: dbConfig,
-		JWT:      jwtConfig,
-		Redis:    redisConfig,
-	}
+// GetRedisAddr returns Redis address
+func (c *Config) GetRedisAddr() string {
+	return fmt.Sprintf("%s:%s", c.Redis.Host, c.Redis.Port)
 }
 
-// getConfigString tries to get value from YAML config first, then falls back to environment variable
-func getConfigString(yamlKey, envKey string) string {
-	value := viper.GetString(yamlKey)
-	if value == "" {
-		value = viper.GetString(envKey)
-	}
-	return value
+// IsProduction checks if the application is running in production mode
+func (c *Config) IsProduction() bool {
+	return c.App.Env == "production" || c.App.Env == "prod"
+}
+
+// IsDevelopment checks if the application is running in development mode
+func (c *Config) IsDevelopment() bool {
+	return c.App.Env == "development" || c.App.Env == "dev"
+}
+
+// PrintConfig prints the configuration (excluding sensitive data)
+func (c *Config) PrintConfig() {
+	log.Printf("Configuration loaded:")
+	log.Printf("  Environment: %s", c.App.Env)
+	log.Printf("  Server Port: %s", c.Server.Port)
+	log.Printf("  Database Type: %s", c.Database.Type)
+	log.Printf("  Redis: %s", c.GetRedisAddr())
+	log.Printf("  JWT Access Duration: %s", c.JWT.AccessDuration)
+	log.Printf("  JWT Refresh Duration: %s", c.JWT.RefreshDuration)
 }
