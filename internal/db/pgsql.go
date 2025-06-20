@@ -36,7 +36,7 @@ func InitPgsql(config *config.DatabaseConfig) *gorm.DB {
 
 	log.Println("Successfully connected to PostgreSQL!")
 
-	db.AutoMigrate(&domain.Foo{})
+	db.AutoMigrate(&domain.Foo{}, &domain.Bar{})
 
 	return db
 }
@@ -56,7 +56,7 @@ func (pg *pgsqlRepository) Create(ctx context.Context, _ string, model any) erro
 func (pg *pgsqlRepository) GetById(ctx context.Context, _ string, id string, result any) error {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	err := pg.db.WithContext(ctx).Find(result, "id = ?", id).Error
+	err := pg.db.WithContext(ctx).First(result, "id = ?", id).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.New("entity not found")
@@ -86,25 +86,59 @@ func (pg *pgsqlRepository) GetByField(ctx context.Context, _ string, field strin
 	return nil
 }
 
-func (pg *pgsqlRepository) UpdateById(ctx context.Context, _ string, id string, update any) error {
+func (pg *pgsqlRepository) UpdateById(ctx context.Context, collection string, id string, update any) error {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	err := pg.db.WithContext(ctx).Model(update).Where("id = ?", id).Updates(update).Error
+
+	model, err := pg.getModelByCollection(collection)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("entity not found")
-		}
 		return err
 	}
+
+	result := pg.db.WithContext(ctx).Model(model).Where("id = ?", id).Updates(update)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return errors.New("entity not found")
+		}
+		return result.Error
+	}
+
+	if result.RowsAffected == 0 {
+		return errors.New("entity not found")
+	}
+
 	return nil
 }
 
-func (pg *pgsqlRepository) DeleteById(ctx context.Context, _ string, id string) error {
+func (pg *pgsqlRepository) DeleteById(ctx context.Context, collection string, id string) error {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	err := pg.db.WithContext(ctx).Delete(&gorm.Model{}, "id = ?", id).Error
+
+	model, err := pg.getModelByCollection(collection)
 	if err != nil {
 		return err
 	}
+
+	result := pg.db.WithContext(ctx).Delete(model, "id = ?", id)
+	if result.Error != nil {
+		return result.Error
+	}
+
+	if result.RowsAffected == 0 {
+		return errors.New("entity not found")
+	}
+
 	return nil
+}
+
+// getModelByCollection returns the appropriate model based on collection name
+func (pg *pgsqlRepository) getModelByCollection(collection string) (any, error) {
+	switch collection {
+	case "bar":
+		return &domain.Bar{}, nil
+	case "foo":
+		return &domain.Foo{}, nil
+	default:
+		return nil, fmt.Errorf("unknown collection: %s", collection)
+	}
 }

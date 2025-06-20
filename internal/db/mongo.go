@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"errors"
 	"go-gin-boilerplate/config"
 	"log"
 	"time"
@@ -12,7 +13,6 @@ import (
 )
 
 func InitMongo(config *config.DatabaseConfig) *mongo.Client {
-
 	dsn := config.MongoDB.URI
 	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI(dsn))
 	if err != nil {
@@ -41,7 +41,14 @@ func (mg *mongoRepo) Create(ctx context.Context, collection string, model any) e
 func (mg *mongoRepo) GetById(ctx context.Context, collection string, id string, result any) error {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	return mg.client.Database(mg.dbName).Collection(collection).FindOne(ctx, bson.M{"_id": id}).Decode(result)
+	err := mg.client.Database(mg.dbName).Collection(collection).FindOne(ctx, bson.M{"_id": id}).Decode(result)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return errors.New("entity not found")
+		}
+		return err
+	}
+	return nil
 }
 
 func (mg *mongoRepo) GetAll(ctx context.Context, collection string, result any) error {
@@ -57,23 +64,38 @@ func (mg *mongoRepo) GetAll(ctx context.Context, collection string, result any) 
 func (mg *mongoRepo) GetByField(ctx context.Context, collection string, field string, value any, result any) error {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	cur, err := mg.client.Database(mg.dbName).Collection(collection).Find(ctx, bson.M{field: value})
+	err := mg.client.Database(mg.dbName).Collection(collection).FindOne(ctx, bson.M{field: value}).Decode(result)
 	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return errors.New("entity not found")
+		}
 		return err
 	}
-	return cur.All(ctx, result)
+	return nil
 }
 
 func (mg *mongoRepo) UpdateById(ctx context.Context, collection string, id string, update any) error {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	_, err := mg.client.Database(mg.dbName).Collection(collection).UpdateOne(ctx, bson.M{"_id": id}, update)
-	return err
+	result, err := mg.client.Database(mg.dbName).Collection(collection).UpdateOne(ctx, bson.M{"_id": id}, bson.M{"$set": update})
+	if err != nil {
+		return err
+	}
+	if result.MatchedCount == 0 {
+		return errors.New("entity not found")
+	}
+	return nil
 }
 
 func (mg *mongoRepo) DeleteById(ctx context.Context, collection string, id string) error {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	_, err := mg.client.Database(mg.dbName).Collection(collection).DeleteOne(ctx, bson.M{"_id": id})
-	return err
+	result, err := mg.client.Database(mg.dbName).Collection(collection).DeleteOne(ctx, bson.M{"_id": id})
+	if err != nil {
+		return err
+	}
+	if result.DeletedCount == 0 {
+		return errors.New("entity not found")
+	}
+	return nil
 }

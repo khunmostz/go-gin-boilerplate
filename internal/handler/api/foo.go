@@ -7,5 +7,9 @@ import (
 )
 
 func RegisterFooRoutes(router *gin.RouterGroup, fooHandler *handler.FooHandler) {
-	router.POST("/", fooHandler.CreateFoo)
+	router.POST("/", fooHandler.Create)
+	router.GET("/", fooHandler.GetAll)
+	router.GET("/:id", fooHandler.GetByID)
+	router.PUT("/:id", fooHandler.UpdateByID)
+	router.DELETE("/:id", fooHandler.DeleteByID)
 }

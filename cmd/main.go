@@ -44,7 +44,7 @@ import (
 // @securityDefinitions.apikey BearerAuth
 // @in header
 // @name Authorization
-// @description Type "Bearer" followed by a space and JWT token.
+// @description Enter JWT token in the format: Bearer {your_token_here}
 
 func gracefulShutdown(server *http.Server) {
 	quit := make(chan os.Signal, 1)
@@ -67,7 +67,7 @@ func main() {
 	// Load configuration
 	env := os.Getenv("APP_ENV")
 	if env == "" {
-		env = "dev" // default to development
+		env = "example" // default to development
 	}
 
 	appConfig, err := config.LoadConfigFromEnv(env)

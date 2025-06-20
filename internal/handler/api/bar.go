@@ -7,9 +7,9 @@ import (
 )
 
 func RegisterBarRoutes(router *gin.RouterGroup, barHandler *handler.BarHandler) {
-	router.POST("/", barHandler.CreateBar)
-	router.GET("/", barHandler.GetBars)
-	router.GET("/:id", barHandler.GetBarByID)
-	router.PUT("/:id", barHandler.UpdateBar)
-	router.DELETE("/:id", barHandler.DeleteBar)
+	router.POST("/", barHandler.Create)
+	router.GET("/", barHandler.GetAll)
+	router.GET("/:id", barHandler.GetByID)
+	router.PUT("/:id", barHandler.UpdateByID)
+	router.DELETE("/:id", barHandler.DeleteByID)
 }

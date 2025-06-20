@@ -18,8 +18,8 @@ database:
     uri: ""
     host: localhost
     port: "27017"
-    username: ""
-    password: ""
+    username: root
+    password: password
     dbname: example_db
 
 jwt:

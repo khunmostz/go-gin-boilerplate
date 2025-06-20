@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func TestFooService_CreateFoo(t *testing.T) {
+func TestFooService_Create(t *testing.T) {
 	tests := []struct {
 		name           string
 		inputFoo       *domain.Foo
@@ -29,7 +29,7 @@ func TestFooService_CreateFoo(t *testing.T) {
 					ID:   "507f1f77bcf86cd799439011",
 					Name: "Test Foo",
 				}
-				mockRepo.On("CreateFoo", mock.Anything, mock.AnythingOfType("*domain.Foo")).Return(expectedFoo, nil)
+				mockRepo.On("Create", mock.Anything, mock.AnythingOfType("*domain.Foo")).Return(expectedFoo, nil)
 			},
 			expectedResult: &domain.Foo{
 				ID:   "507f1f77bcf86cd799439011",
@@ -43,7 +43,7 @@ func TestFooService_CreateFoo(t *testing.T) {
 				Name: "Test Foo",
 			},
 			mockSetup: func(mockRepo *mocks.MockFooRepository) {
-				mockRepo.On("CreateFoo", mock.Anything, mock.AnythingOfType("*domain.Foo")).Return(nil, assert.AnError)
+				mockRepo.On("Create", mock.Anything, mock.AnythingOfType("*domain.Foo")).Return(nil, assert.AnError)
 			},
 			expectedResult: nil,
 			expectedError:  assert.AnError.Error(),
@@ -59,7 +59,7 @@ func TestFooService_CreateFoo(t *testing.T) {
 			fooService := service.NewFooService(mockRepo)
 
 			// Execute
-			result, err := fooService.CreateFoo(context.Background(), tt.inputFoo)
+			result, err := fooService.Create(context.Background(), tt.inputFoo)
 
 			// Assert
 			if tt.expectedError != "" {

@@ -4,7 +4,7 @@ services:
   # app:
   #   build:
   #     context: .
-  #     dockerfile: Dockerfile.dev
+  #     dockerfile: Dockerfile.example
   #   ports:
   #     - "8080:8080"
   #   depends_on:
@@ -12,10 +12,10 @@ services:
   #     - redis
   #   volumes:
   #     - .:/app
-  #     - ./config/dev:/app/config
+  #     - ./config/example:/app/config
   #   environment:
-  #     - APP_ENV=dev
-  #     - CONFIG_PATH=/app/config/config.dev.yaml
+  #     - APP_ENV=example
+  #     - CONFIG_PATH=/app/config/config.example.yaml
   #   command: ["./main"]
 
   pgsql:
@@ -23,11 +23,11 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_dev_data:/var/lib/postgresql/data
+      - postgres_example_data:/var/lib/postgresql/data
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=chatbot_dev
+      - POSTGRES_DB=example_db
       - TZ=Asia/Bangkok
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
@@ -40,7 +40,7 @@ services:
     ports:
       - "6379:6379"
     volumes:
-      - redis_dev_data:/data
+      - redis_example_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -52,9 +52,11 @@ services:
     ports:
       - "27017:27017"
     volumes:
-      - mongodb_dev_data:/data/db
+      - mongodb_example_data:/data/db
     environment:
-      - MONGO_INITDB_DATABASE=chatbot_dev
+      - MONGO_INITDB_DATABASE=example_db
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=password
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 5s
@@ -62,6 +64,6 @@ services:
       retries: 5
 
 volumes:
-  postgres_dev_data:
-  redis_dev_data:
-  mongodb_dev_data:
+  postgres_example_data:
+  redis_example_data:
+  mongodb_example_data:
