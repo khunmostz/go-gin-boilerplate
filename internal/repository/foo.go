@@ -29,7 +29,7 @@ func (fr *FooRepository) Create(ctx context.Context, foo *domain.Foo) (*domain.F
 
 func (fr *FooRepository) GetAll(ctx context.Context) ([]*domain.Foo, error) {
 	var foos []*domain.Foo
-	if err := fr.baseRepo.GetAll(ctx, fr.collection, &foos); err != nil {
+	if err := fr.baseRepo.GetAll(ctx, fr.collection, &foos, nil); err != nil {
 		return nil, err
 	}
 	return foos, nil

@@ -51,10 +51,33 @@ func (mg *mongoRepo) GetById(ctx context.Context, collection string, id string, 
 	return nil
 }
 
-func (mg *mongoRepo) GetAll(ctx context.Context, collection string, result any) error {
+func (mg *mongoRepo) GetAll(ctx context.Context, collection string, result any, filter any) error {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	cur, err := mg.client.Database(mg.dbName).Collection(collection).Find(ctx, bson.M{})
+
+	mongoFilter := bson.M{}
+	if filter != nil {
+		// Use bson.Marshal and Unmarshal for automatic conversion
+		filterBytes, err := bson.Marshal(filter)
+		if err != nil {
+			return err
+		}
+		err = bson.Unmarshal(filterBytes, &mongoFilter)
+		if err != nil {
+			return err
+		}
+
+		// Remove empty/zero values to avoid matching empty strings
+		cleanFilter := bson.M{}
+		for key, value := range mongoFilter {
+			if value != nil && value != "" {
+				cleanFilter[key] = value
+			}
+		}
+		mongoFilter = cleanFilter
+	}
+
+	cur, err := mg.client.Database(mg.dbName).Collection(collection).Find(ctx, mongoFilter)
 	if err != nil {
 		return err
 	}

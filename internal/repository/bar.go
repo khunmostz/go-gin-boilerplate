@@ -29,7 +29,7 @@ func (br *BarRepository) Create(ctx context.Context, bar *domain.Bar) (*domain.B
 
 func (br *BarRepository) GetAll(ctx context.Context) ([]*domain.Bar, error) {
 	var bars []*domain.Bar
-	if err := br.baseRepo.GetAll(ctx, br.collection, &bars); err != nil {
+	if err := br.baseRepo.GetAll(ctx, br.collection, &bars, nil); err != nil {
 		return nil, err
 	}
 	return bars, nil
