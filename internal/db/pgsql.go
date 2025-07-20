@@ -66,7 +66,7 @@ func (pg *pgsqlRepository) GetById(ctx context.Context, _ string, id string, res
 	return nil
 }
 
-func (pg *pgsqlRepository) GetAll(ctx context.Context, _ string, result any) error {
+func (pg *pgsqlRepository) GetAll(ctx context.Context, _ string, result any, filter any) error {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	return pg.db.WithContext(ctx).Find(result).Error

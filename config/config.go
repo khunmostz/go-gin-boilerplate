@@ -111,13 +111,17 @@ func LoadConfigFromEnv(env string) (*Config, error) {
 	var configPath string
 
 	switch env {
-	case "development", "dev":
+	case "example":
+		configPath = "config/example/config.example.yaml"
+	case "development", "config/dev/config.dev.yaml":
 		configPath = "config/dev/config.dev.yaml"
 	case "production", "prod":
 		configPath = "config/prod/config.prod.yaml"
 	default:
 		configPath = "config/example/config.example.yaml"
 	}
+
+	fmt.Println("Loading config from", configPath)
 
 	return LoadConfig(configPath)
 }
